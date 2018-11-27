@@ -411,66 +411,87 @@ func parseScaleParams(t *types.Type) (map[string]string, error) {
 	return nil, fmt.Errorf(jsonPathError)
 }
 
-func computations(arr string[])
+// PrintColumnKV parses key-value string formatted as "foo=bar" and returns key and value.
+func PrintColumnKV(s string) (key, value string, err error) {
+	kv := strings.SplitN(s, "=", 2)
+	if len(kv) != 2 {
+		err = fmt.Errorf("invalid key value pair")
+		return key, value, err
+	}
+	key, value = kv[0], kv[1]
+	if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
+		value = value[1 : len(value)-1]
+	}
+	return key, value, err
+}
+
+// computations is a helper function for the parsePrintColumnParams function.
+func helperPrintColumn(parts string, comment string) (v1beta1.CustomResourceColumnDefinition, error) {
+	config := v1beta1.CustomResourceColumnDefinition{}
+	part := strings.Split(parts, ",")
+	if len(part) < 3 {
+		log.Fatalf("Expected required fields in this context: %s", comment)
+	}
+	for _, s := range part {
+		fmt.Printf("\n[debug] %s", s)
+	}
+	for _, elem := range strings.Split(parts, ",") {
+		key, value, err := PrintColumnKV(elem)
+		if err != nil {
+			log.Fatalf("//+kubebuilder:printcolumn: tags must be key value pairs.  Expected "+
+				"keys [name=<name>,type=<type>,description=<descr>,format=<format>] "+
+				"Got string: [%s]", parts)
+		}
+		switch key {
+		case printColumnName:
+			config.Name = value
+		case printColumnType:
+			if value == "integer" || value == "number" || value == "string" || value == "boolean" {
+				config.Type = value
+			} else {
+				return v1beta1.CustomResourceColumnDefinition{}, fmt.Errorf("Please enter the right value type")
+			}
+		case printColumnFormat:
+			if config.Type == "integer" && (value == "int32" || value == "int64") {
+				config.Format = value
+			} else if config.Type == "number" && (value == "float" || value == "double") {
+				config.Format = value
+			} else if config.Type == "string" && (value == "byte" || value == "date" || value == "date-time" || value == "password") {
+				config.Format = value
+			} else {
+				return v1beta1.CustomResourceColumnDefinition{}, fmt.Errorf("Please enter the right value for format")
+			}
+		case printColumnPath:
+			config.JSONPath = value
+		case printColumnPri:
+			i, err := strconv.Atoi(value)
+			v := int32(i)
+			if err != nil {
+				return v1beta1.CustomResourceColumnDefinition{}, err
+			}
+			config.Priority = v
+		case printColumnDescr:
+			config.Description = value
+		default:
+			return v1beta1.CustomResourceColumnDefinition{}, err
+		}
+	}
+	return config, nil
+}
 
 // printcolumn requires name,type,JSONPath fields and rest of the field are optional
 // +kubebuilder:printcolumn:name=<name>,type=<type>,description=<desc>,JSONPath:<.spec.Name>,priority=<0|1>,format=<format>
-func parsePrintColumnParams(t *types.Type) (v1beta1.CustomResourceColumnDefinition, error) {
-	config := v1beta1.CustomResourceColumnDefinition{}
+func parsePrintColumnParams(t *types.Type) ([]v1beta1.CustomResourceColumnDefinition, error) {
+	result := []v1beta1.CustomResourceColumnDefinition{}
 	for _, comment := range t.CommentLines {
 		if strings.Contains(comment, "+kubebuilder:printcolumn") {
 			parts := strings.Replace(comment, "+kubebuilder:printcolumn:", "", -1)
-			part := strings.Split(parts, ",")
-			if len(part) < 3 {
-			    log.Fatalf("Expected required fields in this context: %s", comment)
+			res, err := helperPrintColumn(parts, comment)
+			if err != nil {
+				return []v1beta1.CustomResourceColumnDefinition{}, err
 			}
-
-			result ,err := computations(parts)
-            if err !=nil{ 
-				log.Fatalf("Unsupport validation: %s", err)
-		        return v1beta1.CustomResourceColumnDefinition{}, err
-			}
-
-			for _, elem := range strings.Split(parts, ",") {
-				key, value, err := internal.ParseKV(elem)
-
-				if err != nil {
-					log.Fatalf("// +kubebuilder:printcolumn: tags must be key value pairs.  Expected "+
-						"keys [name=<name>,type=<type>,description=<descr>,format=<format>] "+
-						"Got string: [%s]", parts)
-				}
-
-			}
+			result = append(result, res)
 		}
 	}
-	// 		if len(part) < 3 {
-	// 			fmt.Println(fmt.Errorf("Expected required fields in this context: %s", comment))
-	// 		}
-	// 		for _, s := range part {
-	// 			arr := strings.Split(s, "=")
-	// 			switch arr[0] {
-	// 			case printColumnName:
-	// 				config.Name = arr[1]
-	// 			case printColumnType:
-	// 				config.Type = arr[1]
-	// 			case printColumnFormat:
-	// 				config.Format = arr[1]
-	// 			case printColumnPath:
-	// 				config.JSONPath = arr[1]
-	// 			case printColumnPri:
-	// 				i, err := strconv.Atoi(arr[1])
-	// 				v := int32(i)
-	// 				if err != nil {
-	// 					log.Fatalf("Could not parse int from %s", comment)
-	// 				}
-	// 				config.Priority = v
-	// 			case printColumnDescr:
-	// 				config.Description = arr[1]
-	// 			default:
-	// 				log.Fatalf("Unsupport validation: %s", comment)
-	// 			}
-	// 		}
-	// 	}
-	// }
-	// return config
+	return result, nil
 }

@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/gengo/types"
 )
@@ -34,6 +33,12 @@ const (
 	statusReplicasPath = "statuspath"
 	labelSelectorPath  = "selectorpath"
 	jsonPathError      = "invalid scale path. specpath, statuspath key-value pairs are required, only selectorpath key-value is optinal. For example: // +kubebuilder:subresource:scale:specpath=.spec.replica,statuspath=.status.replica,selectorpath=.spec.Label"
+	printColumnName    = "name"
+	printColumnType    = "type"
+	printColumnDescr   = "description"
+	printColumnPath    = "JSONPath"
+	printColumnFormat  = "format"
+	printColumnPri     = "priority"
 )
 
 // Options contains the parser options
@@ -105,6 +110,16 @@ func IsController(t *types.Type) bool {
 func IsRBAC(t *types.Type) bool {
 	for _, c := range t.CommentLines {
 		if strings.Contains(c, "+rbac") || strings.Contains(c, "+kubebuilder:rbac") {
+			return true
+		}
+	}
+	return false
+}
+
+// IsPrintColumn returns true if t has a +printcolumn or +kubebuilder:printcolumn tag
+func IsPrintColumn(t *types.Type) bool {
+	for _, c := range t.CommentLines {
+		if strings.Contains(c, "+printcolumn") || strings.Contains(c, "+kubebuilder:printcolumn") {
 			return true
 		}
 	}
@@ -394,4 +409,68 @@ func parseScaleParams(t *types.Type) (map[string]string, error) {
 		}
 	}
 	return nil, fmt.Errorf(jsonPathError)
+}
+
+func computations(arr string[])
+
+// printcolumn requires name,type,JSONPath fields and rest of the field are optional
+// +kubebuilder:printcolumn:name=<name>,type=<type>,description=<desc>,JSONPath:<.spec.Name>,priority=<0|1>,format=<format>
+func parsePrintColumnParams(t *types.Type) (v1beta1.CustomResourceColumnDefinition, error) {
+	config := v1beta1.CustomResourceColumnDefinition{}
+	for _, comment := range t.CommentLines {
+		if strings.Contains(comment, "+kubebuilder:printcolumn") {
+			parts := strings.Replace(comment, "+kubebuilder:printcolumn:", "", -1)
+			part := strings.Split(parts, ",")
+			if len(part) < 3 {
+			    log.Fatalf("Expected required fields in this context: %s", comment)
+			}
+
+			result ,err := computations(parts)
+            if err !=nil{ 
+				log.Fatalf("Unsupport validation: %s", err)
+		        return v1beta1.CustomResourceColumnDefinition{}, err
+			}
+
+			for _, elem := range strings.Split(parts, ",") {
+				key, value, err := internal.ParseKV(elem)
+
+				if err != nil {
+					log.Fatalf("// +kubebuilder:printcolumn: tags must be key value pairs.  Expected "+
+						"keys [name=<name>,type=<type>,description=<descr>,format=<format>] "+
+						"Got string: [%s]", parts)
+				}
+
+			}
+		}
+	}
+	// 		if len(part) < 3 {
+	// 			fmt.Println(fmt.Errorf("Expected required fields in this context: %s", comment))
+	// 		}
+	// 		for _, s := range part {
+	// 			arr := strings.Split(s, "=")
+	// 			switch arr[0] {
+	// 			case printColumnName:
+	// 				config.Name = arr[1]
+	// 			case printColumnType:
+	// 				config.Type = arr[1]
+	// 			case printColumnFormat:
+	// 				config.Format = arr[1]
+	// 			case printColumnPath:
+	// 				config.JSONPath = arr[1]
+	// 			case printColumnPri:
+	// 				i, err := strconv.Atoi(arr[1])
+	// 				v := int32(i)
+	// 				if err != nil {
+	// 					log.Fatalf("Could not parse int from %s", comment)
+	// 				}
+	// 				config.Priority = v
+	// 			case printColumnDescr:
+	// 				config.Description = arr[1]
+	// 			default:
+	// 				log.Fatalf("Unsupport validation: %s", comment)
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// return config
 }

@@ -148,11 +148,15 @@ spec:
           type: object
         status:
           properties:
+            inter:
+              description: Adding this field for testing interface{} validation
+              type: object
             replicas:
               description: It tracks the number of replicas.
               format: int32
               type: integer
           required:
+          - inter
           - replicas
           type: object
   version: v1alpha1

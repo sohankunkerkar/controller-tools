@@ -99,6 +99,9 @@ type ToyStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	//Adding this field for testing interface{} validation
+	Inter interface{} `json:"inter"`
+
 	// It tracks the number of replicas.
 	Replicas int32 `json:"replicas"`
 }

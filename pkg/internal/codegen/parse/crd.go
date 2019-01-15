@@ -220,6 +220,8 @@ func (b *APIs) typeToJSONSchemaProps(t *types.Type, found sets.String, comments 
 		v, s = b.typeToJSONSchemaProps(t.Elem, found, comments, false)
 	case types.Alias:
 		v, s = b.typeToJSONSchemaProps(t.Underlying, found, comments, false)
+	case types.Interface:
+		v, s = b.parseInterfaceValidation(t, found, comments)
 	default:
 		log.Fatalf("Unknown supported Kind %v\n", t.Kind)
 	}
@@ -415,6 +417,16 @@ func (b *APIs) parseArrayValidation(t *types.Type, found sets.String, comments [
 		log.Fatalf("%v", err)
 	}
 	return props, buff.String()
+}
+
+// parseInterfaceValidation returns a JSONSchemaProps object and its serialization in
+// Go that describe the validations for the given Interface.
+func (b *APIs) parseInterfaceValidation(t *types.Type, found sets.String, comments []string) (v1beta1.JSONSchemaProps, string) {
+	props := v1beta1.JSONSchemaProps{
+		Type:        "object",
+		Description: parseDescription(comments),
+	}
+	return props, b.objSchema()
 }
 
 type objectTemplateArgs struct {
